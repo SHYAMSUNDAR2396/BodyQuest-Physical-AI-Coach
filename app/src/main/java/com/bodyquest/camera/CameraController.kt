@@ -17,6 +17,8 @@ import java.util.concurrent.Executors
 class CameraController(private val context: Context) {
     private val analysisExecutor = Executors.newSingleThreadExecutor()
     private var provider: ProcessCameraProvider? = null
+    private var preview: Preview? = null
+    private var analysis: ImageAnalysis? = null
 
     fun start(
         lifecycleOwner: LifecycleOwner,
@@ -29,21 +31,30 @@ class CameraController(private val context: Context) {
                 val cameraProvider = future.get()
                 provider = cameraProvider
 
-                val preview = Preview.Builder().build().also {
+                val newPreview = Preview.Builder().build().also {
                     it.surfaceProvider = previewView.surfaceProvider
                 }
 
-                val analysis = ImageAnalysis.Builder()
+                val newAnalysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
-                analysis.setAnalyzer(analysisExecutor, PoseFrameAnalyzer(isFrontCamera = false, onFrame = onFrame))
+                newAnalysis.setAnalyzer(analysisExecutor, PoseFrameAnalyzer(isFrontCamera = false, onFrame = onFrame))
 
-                cameraProvider.unbindAll()
+                // Unbind only what *this* controller previously bound, never unbindAll() — that's
+                // a device-wide nuke. If a previous screen's teardown lands after this screen has
+                // already bound its own camera (a real timing overlap during Compose navigation),
+                // unbindAll() would kill the new binding permanently with nothing left to rebind it.
+                if (preview != null || analysis != null) {
+                    cameraProvider.unbind(preview, analysis)
+                }
+                preview = newPreview
+                analysis = newAnalysis
+
                 cameraProvider.bindToLifecycle(
                     lifecycleOwner,
                     CameraSelector.DEFAULT_BACK_CAMERA,
-                    preview,
-                    analysis,
+                    newPreview,
+                    newAnalysis,
                 )
             },
             ContextCompat.getMainExecutor(context),
@@ -51,6 +62,8 @@ class CameraController(private val context: Context) {
     }
 
     fun stop() {
-        provider?.unbindAll()
+        provider?.unbind(preview, analysis)
+        preview = null
+        analysis = null
     }
 }

@@ -15,8 +15,10 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.bodyquest.camera.CameraController
+import com.bodyquest.camera.FrameRateTracker
 import com.bodyquest.coach.CoachingPhrases
 import com.bodyquest.coach.CorrectionEvent
+import com.bodyquest.core.hasFullBodyVisible
 import com.bodyquest.form.SquatFormSnapshot
 import com.bodyquest.pose.PoseSession
 import com.bodyquest.ui.theme.*
@@ -25,6 +27,8 @@ import com.bodyquest.workout.RepResult
 import com.bodyquest.workout.SquatWorkoutSession
 import com.bodyquest.workout.WorkoutResultsStore
 import kotlinx.coroutines.flow.MutableStateFlow
+
+private enum class TrackingStatus { STARTING, NO_POSE, PARTIAL_BODY, TRACKING }
 
 /**
  * The primary workout screen (spec §23): camera + skeleton dominate the top; form score,
@@ -40,6 +44,8 @@ fun LiveCoachScreen(exerciseId: String, onBack: () -> Unit, onFinishSet: () -> U
     val poseSession = remember { PoseSession(context) }
     val workoutSession = remember { SquatWorkoutSession() }
     val voice = remember { CoachVoice(context) }
+    val fpsTracker = remember { FrameRateTracker() }
+    var fps by remember { mutableStateOf(0) }
     val lastRepFlow = remember { MutableStateFlow<RepResult?>(null) }
     val lastRep by lastRepFlow.collectAsState()
     val pose by poseSession.result.collectAsState()
@@ -50,6 +56,23 @@ fun LiveCoachScreen(exerciseId: String, onBack: () -> Unit, onFinishSet: () -> U
             controller.stop()
             poseSession.close()
             voice.close()
+        }
+    }
+
+    // Without this, a frozen preview and a dark-but-live one look identical, and a rep
+    // counter stuck at 0 gives no clue why (spec §36 — this applies during the workout
+    // itself, not just at calibration).
+    val trackingStatus = when {
+        pose == null -> TrackingStatus.STARTING
+        pose?.isEmpty == true -> TrackingStatus.NO_POSE
+        pose?.hasFullBodyVisible() != true -> TrackingStatus.PARTIAL_BODY
+        else -> TrackingStatus.TRACKING
+    }
+    LaunchedEffect(trackingStatus) {
+        when (trackingStatus) {
+            TrackingStatus.NO_POSE -> voice.speak("Lighting is too low for reliable tracking, or you're outside the frame.")
+            TrackingStatus.PARTIAL_BODY -> voice.speak("Step back so your full body is visible.")
+            else -> {} // tracking fine or still starting — no need to say anything
         }
     }
 
@@ -83,6 +106,7 @@ fun LiveCoachScreen(exerciseId: String, onBack: () -> Unit, onFinishSet: () -> U
                     factory = { ctx ->
                         PreviewView(ctx).also { previewView ->
                             controller.start(lifecycleOwner, previewView) { frame ->
+                                fps = fpsTracker.onFrame(frame.timestampMs)
                                 val result = poseSession.onFrame(frame)
                                 if (result != null) {
                                     val rep = workoutSession.onFrame(result, frame.timestampMs)
@@ -95,9 +119,28 @@ fun LiveCoachScreen(exerciseId: String, onBack: () -> Unit, onFinishSet: () -> U
                 )
                 SkeletonOverlay(pose = pose, modifier = Modifier.fillMaxSize())
 
-                // The correction message is the visually dominant element on this screen (spec §13/§23).
-                activeCorrection?.let { correction ->
-                    CorrectionBanner(correction, modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp))
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(BqSurface.copy(alpha = 0.85f))
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                ) {
+                    Text("CAMERA FPS  $fps", style = MaterialTheme.typography.labelLarge, color = BqAccent)
+                    Text(
+                        trackingStatus.name.replace('_', ' '),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (trackingStatus == TrackingStatus.TRACKING) BqGood else BqWarn,
+                    )
+                }
+
+                // The correction message is the visually dominant element on this screen (spec §13/§23),
+                // but if there's no rep to correct yet, tell the athlete why instead of showing nothing.
+                if (activeCorrection != null) {
+                    CorrectionBanner(activeCorrection, modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp))
+                } else if (trackingStatus != TrackingStatus.TRACKING && trackingStatus != TrackingStatus.STARTING) {
+                    PositioningBanner(trackingStatus, modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp))
                 }
             }
 
@@ -126,6 +169,23 @@ private fun CorrectionBanner(correction: CorrectionEvent, modifier: Modifier = M
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .background(bg.copy(alpha = 0.95f))
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+    ) {
+        Text(text, style = MaterialTheme.typography.titleLarge.copy(color = Color.Black))
+    }
+}
+
+@Composable
+private fun PositioningBanner(status: TrackingStatus, modifier: Modifier = Modifier) {
+    val text = when (status) {
+        TrackingStatus.NO_POSE -> "Lighting is too low for reliable tracking, or you're outside the frame."
+        TrackingStatus.PARTIAL_BODY -> "Step back so your full body is visible."
+        else -> return
+    }
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(BqWarn.copy(alpha = 0.95f))
             .padding(horizontal = 20.dp, vertical = 14.dp),
     ) {
         Text(text, style = MaterialTheme.typography.titleLarge.copy(color = Color.Black))
