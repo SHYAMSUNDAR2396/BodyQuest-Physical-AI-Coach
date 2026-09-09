@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.camerax.view)
 
     implementation(libs.mediapipe.vision)
+    implementation(libs.mediapipe.genai)
 
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)

@@ -25,7 +25,7 @@ companion) is scaffolded as empty packages/directories and not yet implemented.
 | Pose | MediaPipe Pose Landmarker on-device, GPU delegate with CPU fallback |
 | Movement | Squat rep-counting state machine (smoothed, hysteresis, debounced) |
 | Form | Deterministic depth / knee-alignment / torso / tempo / symmetry scoring |
-| Coaching | Single-issue correction engine with before/after verification |
+| Coaching | Single-issue correction engine with before/after verification; phrasing pluggable with an on-device Gemma 3 model, falls back to a fixed phrase table when no model is loaded |
 | Voice | On-device TTS speaks corrections and positioning guidance |
 | UI | Splash → Onboarding → Home → Workout/Exercise Selection → Calibration → Live Coach → Set Summary |
 
@@ -44,6 +44,11 @@ companion) is scaffolded as empty packages/directories and not yet implemented.
 
 Launch the app, grant camera access, and follow Calibration → Live Coach to run a squat set.
 
+Coaching phrases work out of the box from the fixed phrase table. To try Gemma-generated
+phrasing instead, push a converted Gemma 3 `.task` model (e.g. `gemma3-1b-it-int4.task`) onto
+the device at the app's `filesDir` — the model isn't bundled in the APK, so without it the app
+silently uses the fixed phrases.
+
 ## Architecture
 
 One Gradle app module, package-boundaried by layer:
@@ -56,6 +61,7 @@ app/src/main/java/com/bodyquest/
   movement/  per-exercise rep-counting state machines
   form/      deterministic biomechanics scoring
   coach/     correction selection + before/after verification, phrase table
+  llm/       on-device Gemma coaching-phrase provider (optional, falls back to coach/'s table)
   workout/   orchestrates camera frame → rep → form → correction end-to-end
   voice/     on-device TTS wrapper
   ui/        Compose screens, navigation, theme
@@ -84,7 +90,8 @@ BodyQuest Studio desktop companion.
 ## Design principles
 
 - **Deterministic biomechanics, not hallucinated AI.** Form scores come from joint-angle
-  geometry; the LLM's job (where used at all) is phrasing, never the numbers.
+  geometry; the LLM's job (where used at all — an optional on-device Gemma 3 model) is
+  phrasing, never the numbers or which issue to raise.
 - **On-device by default.** Pose estimation and coaching run locally; no raw video leaves
   the device.
 - **One correction at a time.** When multiple form issues fire on the same rep, only the

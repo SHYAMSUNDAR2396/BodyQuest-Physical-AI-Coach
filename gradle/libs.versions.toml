@@ -9,6 +9,7 @@ activityCompose = "1.10.1"
 navigationCompose = "2.9.8"
 camerax = "1.4.2"
 mediapipeVision = "0.10.29"
+mediapipeGenai = "0.10.29"
 room = "2.8.4"
 coroutines = "1.9.0"
 junit = "4.13.2"
@@ -31,6 +32,7 @@ camerax-camera2 = { group = "androidx.camera", name = "camera-camera2", version.
 camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
 camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 mediapipe-vision = { group = "com.google.mediapipe", name = "tasks-vision", version.ref = "mediapipeVision" }
+mediapipe-genai = { group = "com.google.mediapipe", name = "tasks-genai", version.ref = "mediapipeGenai" }
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }

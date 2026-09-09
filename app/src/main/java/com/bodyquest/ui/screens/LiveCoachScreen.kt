@@ -17,9 +17,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.bodyquest.camera.CameraController
 import com.bodyquest.camera.FrameRateTracker
 import com.bodyquest.coach.CoachingPhrases
+import com.bodyquest.coach.CorrectionEngine
 import com.bodyquest.coach.CorrectionEvent
 import com.bodyquest.core.hasFullBodyVisible
 import com.bodyquest.form.SquatFormSnapshot
+import com.bodyquest.llm.GemmaCoachEngine
 import com.bodyquest.pose.PoseSession
 import com.bodyquest.ui.theme.*
 import com.bodyquest.voice.CoachVoice
@@ -42,7 +44,8 @@ fun LiveCoachScreen(exerciseId: String, onBack: () -> Unit, onFinishSet: () -> U
 
     val controller = remember { CameraController(context) }
     val poseSession = remember { PoseSession(context) }
-    val workoutSession = remember { SquatWorkoutSession() }
+    val gemmaCoach = remember { GemmaCoachEngine(context) }
+    val workoutSession = remember { SquatWorkoutSession(correctionEngine = CorrectionEngine(phraseProvider = gemmaCoach)) }
     val voice = remember { CoachVoice(context) }
     val fpsTracker = remember { FrameRateTracker() }
     var fps by remember { mutableStateOf(0) }
@@ -51,10 +54,12 @@ fun LiveCoachScreen(exerciseId: String, onBack: () -> Unit, onFinishSet: () -> U
     val pose by poseSession.result.collectAsState()
 
     LaunchedEffect(Unit) { poseSession.warmUp() }
+    LaunchedEffect(Unit) { gemmaCoach.warmUp() }
     DisposableEffect(Unit) {
         onDispose {
             controller.stop()
             poseSession.close()
+            gemmaCoach.close()
             voice.close()
         }
     }

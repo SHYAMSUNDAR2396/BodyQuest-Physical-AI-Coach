@@ -17,6 +17,7 @@ data class CorrectionOutcome(
 class CorrectionEngine(
     private val issueThreshold: Float = 0.75f,
     private val improvementMargin: Float = 0.02f,
+    private val phraseProvider: CoachingPhraseProvider = CoachingPhrases,
 ) {
     private var pending: CorrectionEvent? = null
     private val _history = mutableListOf<CorrectionEvent>()
@@ -46,7 +47,7 @@ class CorrectionEngine(
         val before = scoreFor(snapshot, issue) ?: return null
         val event = CorrectionEvent(
             issue = issue,
-            instruction = CoachingPhrases.instructionFor(issue),
+            instruction = phraseProvider.instructionFor(issue),
             beforeScore = before,
             timestamp = timestampMs,
         )
