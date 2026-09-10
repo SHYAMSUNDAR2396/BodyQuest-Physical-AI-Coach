@@ -29,6 +29,16 @@ companion) is scaffolded as empty packages/directories and not yet implemented.
 | Voice | On-device TTS speaks corrections and positioning guidance |
 | UI | Splash → Onboarding → Home → Workout/Exercise Selection → Calibration → Live Coach → Set Summary |
 
+## Built with
+
+- Kotlin + Jetpack Compose, single Gradle Android app module
+- CameraX — camera preview and frame analysis
+- MediaPipe Tasks Vision — Pose Landmarker (GPU delegate, CPU fallback)
+- MediaPipe Tasks GenAI — optional on-device Gemma 3 model for coaching phrasing
+- Android TextToSpeech — on-device coaching voice
+- Room — local persistence
+- Kotlin coroutines
+
 ## Requirements
 
 - Android Studio / JDK 17
@@ -86,6 +96,29 @@ BodyQuest Studio desktop companion.
 ```bash
 ./gradlew :app:testDebugUnitTest
 ```
+
+### Manual/on-device
+
+Unit tests don't touch the camera, MediaPipe, TTS, or Gemma — verify those on a real device
+(the pose and Gemma models need real hardware; an emulator's software renderer/CPU won't give
+representative latency or may fail to load the GPU delegate):
+
+```bash
+./gradlew :app:installDebug
+```
+
+- **Golden path**: grant camera permission → Calibration → Live Coach → do a squat set with
+  deliberately bad form (e.g. knees caving in) → confirm a correction is spoken promptly and
+  the next rep's snapshot verifies whether it improved → Set Summary shows the set's reps/form/
+  corrections/quality trend.
+- **Gemma fallback**: with no model file on the device, corrections should still speak the
+  fixed phrases in `coach/CorrectionTypes.kt` — coaching must never go silent. Push a converted
+  `gemma3-1b-it-int4.task` to the app's `filesDir` (see Getting started), relaunch, and confirm
+  phrasing is generated instead; kill/corrupt the model file mid-session to confirm it falls
+  back cleanly rather than crashing.
+- **Edge cases**: partial body out of frame (should show the "position yourself" state, not a
+  bogus score), pausing mid-rep, and backgrounding the app during Live Coach (camera/TTS/model
+  resources should release via `onDispose`, not leak).
 
 ## Design principles
 
