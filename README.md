@@ -13,6 +13,10 @@ SEE → UNDERSTAND → ANALYZE → CORRECT → VERIFY → LEARN → ADAPT
 Most fitness apps count reps. BodyQuest checks *how* you moved, tells you the one thing to
 fix, and confirms whether you fixed it — closing the loop between coach and athlete.
 
+## Demo
+
+[Watch the demo video on YouTube](https://youtu.be/OsAVbPDqJs8)
+
 ## Status
 
 Early build, squat-only. The vertical slice below is real and tested; everything past it
