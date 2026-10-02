@@ -15,7 +15,7 @@ fix, and confirms whether you fixed it — closing the loop between coach and at
 
 ## Demo
 
-[Watch the demo video on YouTube](https://youtu.be/OsAVbPDqJs8)
+[![BodyQuest demo](https://img.youtube.com/vi/OsAVbPDqJs8/maxresdefault.jpg)](https://youtu.be/OsAVbPDqJs8)
 
 ## Status
 
